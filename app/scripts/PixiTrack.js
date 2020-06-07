@@ -260,6 +260,8 @@ class PixiTrack extends Track {
         this.dimensions[0],
         this.dimensions[1]
       );
+    } else {
+      this.pBorder.clear();
     }
   }
 

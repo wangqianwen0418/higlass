@@ -99,11 +99,9 @@ class TiledPixiTrack extends PixiTrack {
     this.visibleTiles = new Set();
     this.visibleTileIds = new Set();
 
-    // keep track of tiles that are currently being rendered
-    this.renderingTiles = new Set();
-
     // the tiles we already have requests out for
     this.fetching = new Set();
+    this.rendering = new Set();
     this.scale = {};
 
     // tiles we have fetched and ready to be rendered
@@ -156,6 +154,18 @@ class TiledPixiTrack extends PixiTrack {
     });
 
     this.pLabel.addChild(this.trackNotFoundText);
+
+    this.loadingText = new GLOBALS.PIXI.Text('Loading', {
+      fontSize: '12px',
+      fontFamily: 'Arial',
+      fill: 'grey'
+    });
+
+    [this.loadingText.x, this.loadingText.y] = this.position;
+    this.loadingText.anchor.x = 0;
+    this.loadingText.anchor.y = 0;
+
+    this.pLabel.addChild(this.loadingText);
 
     this.refreshTilesDebounced = throttleAndDebounce(
       this.refreshTiles.bind(this),
@@ -411,7 +421,7 @@ class TiledPixiTrack extends PixiTrack {
     if (
       !toRemoveIds.length ||
       !this.areAllVisibleTilesLoaded() ||
-      this.renderingTiles.size
+      this.rendering.size
     ) {
       return;
     }
@@ -562,10 +572,38 @@ class TiledPixiTrack extends PixiTrack {
         */
   }
 
+  updateLoadingText() {
+    this.loadingText.visible = true;
+    this.loadingText.text = '';
+
+    if (!this.tilesetInfo) {
+      this.loadingText.text = 'Fetching tileset info...';
+      return;
+    }
+
+    if (this.fetching.size) {
+      this.loadingText.text = `Fetching... ${[...this.fetching]
+        .map(x => x.split('|')[0])
+        .join(' ')}`;
+    }
+
+    // this isn't used directly here but we'll leave it in case
+    // plugin tracks like the pileup track wish to use it
+    if (this.rendering.size) {
+      this.loadingText.text = `Rendering... ${[...this.rendering].join(' ')}`;
+    }
+
+    if (!this.fetching.size && !this.rendering.size) {
+      this.loadingText.visible = false;
+    }
+  }
+
   /**
    * Change the graphics for existing tiles
    */
   updateExistingGraphics() {
+    this.loadingText.text = 'Rendering...';
+
     const fetchedTileIDs = Object.keys(this.fetchedTiles);
 
     for (let i = 0; i < fetchedTileIDs.length; i++) {
@@ -581,7 +619,6 @@ class TiledPixiTrack extends PixiTrack {
      * and graphics objects
      *
      */
-
     // keep track of which tiles are visible at the moment
     this.addMissingGraphics();
     this.removeOldTiles();
@@ -617,6 +654,8 @@ class TiledPixiTrack extends PixiTrack {
   }
 
   fetchNewTiles(toFetch) {
+    this.updateLoadingText();
+
     if (toFetch.length > 0) {
       const toFetchList = [...new Set(toFetch.map(x => x.remoteId))];
 
@@ -741,6 +780,8 @@ class TiledPixiTrack extends PixiTrack {
     } else {
       this.trackNotFoundText.visible = false;
     }
+
+    [this.loadingText.x, this.loadingText.y] = this.position;
 
     if (this.pubSub) {
       this.pubSub.publish('TiledPixiTrack.tilesDrawnStart', {
