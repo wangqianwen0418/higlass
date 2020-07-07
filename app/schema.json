@@ -330,6 +330,9 @@
           "tilesetUid": { "type": "string" },
           "data": { "$ref": "#/definitions/data" },
           "uid": { "type": "string" },
+          "fileType": { "type": "string" },
+          "fileUrl": { "type": "string" },
+          "indexUrl": { "type": "string" },
           "type": {
             "enum": [
               "2d-annotations",
