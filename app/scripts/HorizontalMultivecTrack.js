@@ -43,7 +43,11 @@ export default class HorizontalMultivecTrack extends HeatmapTiledPixiTrack {
           ...prevDataFetcher.dataConfig,
           options: nextDataConfigOptions,
         };
-        this.dataFetcher = new DataFetcher(newDataConfig, pubSub);
+        console.log(prevDataFetcher);
+        this.dataFetcher = new prevDataFetcher.constructor(
+          newDataConfig,
+          pubSub,
+        );
 
         // Only fetch new tiles if the tileset has been registered
         // and has a tilesetUid (for example, due to file url-based tracks).

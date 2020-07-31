@@ -93,7 +93,8 @@
     "url-join": "^1.1.0",
     "url-parse": "^1.4.3",
     "vkbeautify": "^0.99.3",
-    "whatwg-fetch": "^3.0.0"
+    "whatwg-fetch": "^3.0.0",
+    "zarr": "^0.3.0"
   },
   "devDependenciesComments": [
     "webpack-dev-server is pinned because later versions did not serve all static directories: https://github.com/higlass/higlass/issues/623"
