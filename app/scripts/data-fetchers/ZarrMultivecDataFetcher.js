@@ -114,6 +114,9 @@ class ZarrMultivecDataFetcher {
     const { store } = this;
     console.log(`tile z: ${z}, x: ${x}`);
     return this.tilesetInfo().then(tsInfo => {
+
+      const multiscales = tsInfo.multiscales;
+
       // Adapted from clodius.tiles.multivec.get_single_tile
       // Reference: https://github.com/higlass/clodius/blob/develop/clodius/tiles/multivec.py#L66
 
@@ -141,72 +144,100 @@ class ZarrMultivecDataFetcher {
       );
       const { chr: chrStart, pos: chrStartPos } = genomicStart;
       const { chr: chrEnd, pos: chrEndPos } = genomicEnd;
+      console.log(binSize, genomicStart, genomicEnd);
 
+      // Using the [genomicStart, genomicEnd] range, get an array of "chromosome chunks",
+      // where each chunk range starts and ends with the same chromosome.
+      // Start a new chromosome chunk at each chromosome boundary.
+      const chrChunks = [];
       if(chrStart === chrEnd) {
+        // This tile does _not_ cross a chromosome boundary.
+        const chrName = chrStart;
         const zStart = Math.floor(chrStartPos / binSize);
-        const zEnd = Math.ceil(chrEndPos / binSize);
+        const zEnd = Math.min(zStart + 256, Math.ceil(chrEndPos / binSize));
 
-        const arr = openArray({ store, path: `/resolutions/${resolution}/values/${chrStart}/`, mode: 'r' })
-        return arr.then(zData => {
-          return zData.getRaw([slice(zStart, zStart + tileSize), null])
-            .then((dataSliceWrapper) => {
-              const dataSlice = dataSliceWrapper.data;
-              const shape = dataSliceWrapper.shape;
-              console.log(zStart, zEnd, dataSliceWrapper);
-              return Promise.resolve({
-                dense: dataSlice,
-                denseDataExtrema: new DenseDataExtrema1D(dataSlice),
-                dtype: 'float32',
-                
-                min_value: Math.min.apply(null, dataSlice),
-                max_value: Math.max.apply(null, dataSlice),
-                minNonZero: minNonZero(dataSlice),
-                maxNonZero: maxNonZero(dataSlice),
-                server: null,
-                size: 1,
-                shape: [shape[1], shape[0]],
-                tileId: tileId,
-                tilePos: [x],
-                tilePositionId: tileId,
-                tilesetUid: null,
-                zoomLevel: z,
-              });
-            })
-        });
+        chrChunks.push([ chrName, zStart, zEnd ]);
       } else {
-        console.log(binSize, genomicStart, genomicEnd);
+        // This tile does cross a chromosome boundary.
+        let zRemaining = 256;
+        const chrStartIndex = chromSizes.findIndex(([chrName]) => chrName === chrStart);
+        const chrEndIndex = chromSizes.findIndex(([chrName]) => chrName === chrEnd);
+
+        for(let chrIndex = chrStartIndex; chrIndex <= chrEndIndex; chrIndex++) {
+          let chrChunkStart;
+          let chrChunkEnd;
+
+          const [currChrName, currChrLen] = chromSizes[chrIndex];
+
+          if(chrIndex < chrEndIndex) {
+            // If the current chromosome is before the end chromosome, then we want the chunk to end at the end of the current chromosome.
+            if(chrIndex === chrStartIndex) {
+              // If this is the start chromosome, we may want to start at somewhere past 0.
+              chrChunkStart = chrStartPos;
+            } else {
+              // If this is not the start chromosome, then it is somewhere in the middle, and we want to start at 0.
+              chrChunkStart = 0;
+            }
+            chrChunkEnd = currChrLen;
+          } else {
+            // The current chromosome is the end chromosome, so we may want the chunk to end before the end of the chromosome.
+            chrChunkStart = 0;
+            chrChunkEnd = chrEndPos;
+          }
+
+          const zStart = Math.floor(chrChunkStart / binSize);
+          const zEnd = Math.min(zStart + zRemaining, Math.ceil(chrChunkEnd / binSize));
+          chrChunks.push([ currChrName, zStart, zEnd ]);
+          zRemaining -= (zEnd - zStart);
+        }
       }
 
+      console.log(chrChunks);
+      // Get the zarr data for each chromosome chunk,
+      // since data for each chromosome is stored in a separate zarr array.
+      // Fill in `fullTileArray` appropriately.
+      return Promise.all(chrChunks.map(([chrName, zStart, zEnd]) => {
+        console.log(chrName, zStart, zEnd);
+        return openArray({ store, path: `/chromosomes/${chrName}/${resolution}/`, mode: 'r' })
+          .then((arr) => arr.get([null, slice(zStart, zEnd)]));
+      }))
+        .then((chunks) => {
+          console.log(chunks);
+          // Allocate a Float32Array for the tile (with length num_samples * tile_size).
+          const fullTileLength = tsInfo.shape[0] * tsInfo.shape[1];
+          const fullTileArray = new Float32Array(fullTileLength);
 
-      /*
-        const tileWidth = +tsInfo.max_width / 2 ** +z;
+          // Fill in the data for each sample.
+          let offset = 0;
+          const numSamples = tsInfo.shape[1];
+          for(let sampleI = 0; sampleI < numSamples; sampleI++) {
+            for(let chunk of chunks) {
+              const chunkData = chunk.data[sampleI];
+              fullTileArray.set(chunkData, offset);
+              offset += chunkData.length;
+            }
+          }
 
-        // get the bounds of the tile
-        const minX = tsInfo.min_pos[0] + x * tileWidth;
-        const maxX = tsInfo.min_pos[0] + (x + 1) * tileWidth;
+          return Promise.resolve({
+            dense: fullTileArray,
+            denseDataExtrema: new DenseDataExtrema1D(fullTileArray),
+            dtype: 'float32',
+            min_value: Math.min.apply(null, fullTileArray),
+            max_value: Math.max.apply(null, fullTileArray),
+            minNonZero: minNonZero(fullTileArray),
+            maxNonZero: maxNonZero(fullTileArray),
+            server: null,
+            size: 1,
+            shape: tsInfo.shape,
+            tileId: tileId,
+            tilePos: [x],
+            tilePositionId: tileId,
+            tilesetUid: null,
+            zoomLevel: z,
+          });
 
-        const scaleFactor = 1024 / 2 ** (tsInfo.max_zoom - z);
-        */
-
-      return Promise.resolve({
-        dense: [],
-        denseDataExtrema: new DenseDataExtrema1D([]),
-        dtype: 'float32',
-        
-        min_value: Math.min.apply(null, []),
-        max_value: Math.max.apply(null, []),
-        minNonZero: minNonZero([]),
-        maxNonZero: maxNonZero([]),
-        server: null,
-        size: 1,
-        shape: [0, 0],
-        tileId: tileId,
-        tilePos: [x],
-        tilePositionId: tileId,
-        tilesetUid: null,
-        zoomLevel: z,
+        });
       });
-    });
   }
 }
 
