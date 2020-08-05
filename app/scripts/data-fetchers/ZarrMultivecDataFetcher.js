@@ -1,8 +1,10 @@
 import slugid from 'slugid';
-import { HTTPStore, openArray } from 'zarr';
+import { HTTPStore, openArray, slice } from 'zarr';
 import { absToChr } from '../utils';
 import { parseChromsizesRows } from '../ChromosomeInfo';
 
+import DenseDataExtrema1D from '../utils/DenseDataExtrema1D';
+import { minNonZero, maxNonZero } from '../worker';
 /**
  *
  * @param {number[]} chromSizes An array of the lengths of the chromosomes [1000,...]
@@ -24,7 +26,7 @@ class ZarrMultivecDataFetcher {
     this.dataConfig = dataConfig;
     this.trackUid = slugid.nice();
 
-    console.log(dataConfig);
+    //console.log(dataConfig);
 
     if (dataConfig.url) {
       console.assert(dataConfig.url.endsWith('.zarr'));
@@ -90,7 +92,7 @@ class ZarrMultivecDataFetcher {
       }
 
       validTileIds.push(tileId);
-      tilePromises.push(this.tile(z, x));
+      tilePromises.push(this.tile(z, x, tileId));
     }
 
     Promise.all(tilePromises).then(values => {
@@ -100,13 +102,15 @@ class ZarrMultivecDataFetcher {
         tiles[validTileId].tilePositionId = validTileId;
       }
 
+      //console.log(tiles);
+
       receivedTiles(tiles);
     });
     // tiles = tileResponseToData(tiles, null, tileIds);
     return tiles;
   }
 
-  tile(z, x) {
+  tile(z, x, tileId) {
     const { store } = this;
     console.log(`tile z: ${z}, x: ${x}`);
     return this.tilesetInfo().then(tsInfo => {
@@ -128,16 +132,7 @@ class ZarrMultivecDataFetcher {
       // Adapted from clodius.tiles.multivec.get_tile
       // Reference: https://github.com/higlass/clodius/blob/develop/clodius/tiles/multivec.py#L110
 
-      const binsize = resolution;
-      const arrays = [];
-      let count = 0;
-
-      // keep track of how much data has been returned in bins
-      let currentBinnedDataPosition = 0;
-      let currentDataPosition = 0;
-
-      let numAdded = 0;
-      let totalLength = 0;
+      const binSize = resolution;
 
       const [genomicStart, genomicEnd] = abs2genomic(
         chromSizes,
@@ -146,10 +141,42 @@ class ZarrMultivecDataFetcher {
       );
       const { chr: chrStart, pos: chrStartPos } = genomicStart;
       const { chr: chrEnd, pos: chrEndPos } = genomicEnd;
-      console.log(binsize, genomicStart, genomicEnd);
 
-      const tileWidth = +tsInfo.max_width / 2 ** +z;
-      console.log(tileWidth);
+      if(chrStart === chrEnd) {
+        const zStart = Math.floor(chrStartPos / binSize);
+        const zEnd = Math.ceil(chrEndPos / binSize);
+
+        const arr = openArray({ store, path: `/resolutions/${resolution}/values/${chrStart}/`, mode: 'r' })
+        return arr.then(zData => {
+          return zData.getRaw([slice(zStart, zStart + tileSize), null])
+            .then((dataSliceWrapper) => {
+              const dataSlice = dataSliceWrapper.data;
+              const shape = dataSliceWrapper.shape;
+              console.log(zStart, zEnd, dataSliceWrapper);
+              return Promise.resolve({
+                dense: dataSlice,
+                denseDataExtrema: new DenseDataExtrema1D(dataSlice),
+                dtype: 'float32',
+                
+                min_value: Math.min.apply(null, dataSlice),
+                max_value: Math.max.apply(null, dataSlice),
+                minNonZero: minNonZero(dataSlice),
+                maxNonZero: maxNonZero(dataSlice),
+                server: null,
+                size: 1,
+                shape: [shape[1], shape[0]],
+                tileId: tileId,
+                tilePos: [x],
+                tilePositionId: tileId,
+                tilesetUid: null,
+                zoomLevel: z,
+              });
+            })
+        });
+      } else {
+        console.log(binSize, genomicStart, genomicEnd);
+      }
+
 
       /*
         const tileWidth = +tsInfo.max_width / 2 ** +z;
@@ -161,7 +188,24 @@ class ZarrMultivecDataFetcher {
         const scaleFactor = 1024 / 2 ** (tsInfo.max_zoom - z);
         */
 
-      return [];
+      return Promise.resolve({
+        dense: [],
+        denseDataExtrema: new DenseDataExtrema1D([]),
+        dtype: 'float32',
+        
+        min_value: Math.min.apply(null, []),
+        max_value: Math.max.apply(null, []),
+        minNonZero: minNonZero([]),
+        maxNonZero: maxNonZero([]),
+        server: null,
+        size: 1,
+        shape: [0, 0],
+        tileId: tileId,
+        tilePos: [x],
+        tilePositionId: tileId,
+        tilesetUid: null,
+        zoomLevel: z,
+      });
     });
   }
 }
