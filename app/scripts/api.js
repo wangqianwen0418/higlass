@@ -709,6 +709,10 @@ const createApi = function api(context, pubSub) {
             apiPubSub.unsubscribe('geneSearch', callback);
             break;
 
+          case 'zoomToData':
+            apiPubSub.unsubscribe('zoomToData', callback);
+            break;
+
           default:
             // nothing
             break;
@@ -917,6 +921,9 @@ const createApi = function api(context, pubSub) {
 
           case 'geneSearch':
             return apiPubSub.subscribe('geneSearch', callback);
+
+          case 'zoomToData':
+            return apiPubSub.subscribe('zoomToData', callback);
 
           default:
             return undefined;

@@ -95,6 +95,8 @@ class TiledPlot extends React.Component {
         : null;
     */
 
+    this.init = false;
+
     // these values should be changed in componentDidMount
     this.state = {
       sizeMeasured: false,
@@ -102,7 +104,6 @@ class TiledPlot extends React.Component {
       width: 10,
 
       tracks,
-      init: false,
       addTrackPosition: null,
       mouseOverOverlayUid: null,
       // trackOptions: null
@@ -457,7 +458,7 @@ class TiledPlot extends React.Component {
   checkAllTilesetInfoReceived() {
     // Do nothing if HiGlass initialized already
     if (
-      (this.state.init && !this.reset) ||
+      (this.init && !this.reset) ||
       !this.trackRenderer ||
       !this.props.zoomToDataExtentOnInit()
     ) {
@@ -490,7 +491,7 @@ class TiledPlot extends React.Component {
     ).length;
 
     if (allTracksWithTilesetInfos.length === loadedTilesetInfos) {
-      this.setState({ init: true });
+      this.init = true;
       this.reset = false;
       this.handleZoomToData();
     }
@@ -1329,6 +1330,11 @@ class TiledPlot extends React.Component {
       newYDomain = [minPos[1], maxPos[1]];
     }
 
+    this.props.apiPublish('zoomToData', {
+      uid: this.props.uid,
+      xDomain: newXDomain,
+      yDomain: newYDomain,
+    });
     this.props.onDataDomainChanged(newXDomain, newYDomain);
   }
 

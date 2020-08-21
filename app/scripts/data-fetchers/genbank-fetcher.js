@@ -162,38 +162,37 @@ class GBKDataFetcher {
   tilesetInfo(callback) {
     this.tilesetInfoLoading = true;
 
-    return this.dataPromise
-      .then(() => {
-        this.tilesetInfoLoading = false;
+    return this.dataPromise.then(() => {
+      this.tilesetInfoLoading = false;
 
-        const TILE_SIZE = 1024;
-        let retVal = {};
-        // retVal[this.trackUid] = {
-        retVal = {
-          tile_size: TILE_SIZE,
-          max_zoom: Math.ceil(
-            Math.log(this.gbJson[0].size / TILE_SIZE) / Math.log(2),
-          ),
-          max_width: this.gbJson[0].size,
-          min_pos: [0],
-          max_pos: [this.gbJson[0].size],
-        };
+      const TILE_SIZE = 1024;
+      let retVal = {};
+      // retVal[this.trackUid] = {
+      retVal = {
+        tile_size: TILE_SIZE,
+        max_zoom: Math.ceil(
+          Math.log(this.gbJson[0].size / TILE_SIZE) / Math.log(2),
+        ),
+        max_width: this.gbJson[0].size,
+        min_pos: [0],
+        max_pos: [this.gbJson[0].size],
+      };
 
-        if (callback) {
-          callback(retVal);
-        }
+      if (callback) {
+        callback(retVal);
+      }
 
-        return retVal;
-      })
-      .catch((err) => {
-        this.tilesetInfoLoading = false;
+      return retVal;
+    });
+    // .catch((err) => {
+    //   this.tilesetInfoLoading = false;
 
-        if (callback) {
-          callback({
-            error: `Error parsing genbank: ${err}`,
-          });
-        }
-      });
+    //   if (callback) {
+    //     callback({
+    //       error: `Error parsing genbank: ${err}`,
+    //     });
+    //   }
+    // });
   }
 
   fetchTilesDebounced(receivedTiles, tileIds) {

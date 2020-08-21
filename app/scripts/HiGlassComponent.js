@@ -4613,6 +4613,7 @@ class HiGlassComponent extends React.Component {
                 : null
             }
             addTrackPositionMenuPosition={addTrackPositionMenuPosition}
+            apiPublish={this.apiPublish}
             canvasElement={this.state.canvasElement}
             chooseTrackHandler={
               this.state.chooseTrackHandler
