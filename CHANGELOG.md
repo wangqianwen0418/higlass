@@ -3,6 +3,7 @@
 ## Next
 
 - Show a more comprehensive list of track types in the track config menu
+- Don't load an outdated viewconf when closing the viewconf editor without modification
 
 ## v1.11.2
 

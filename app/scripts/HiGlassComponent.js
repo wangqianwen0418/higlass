@@ -924,22 +924,9 @@ class HiGlassComponent extends React.Component {
   }
 
   handleEditViewConfig() {
-    const { viewConfig: viewConfigTmp } = this.state;
-    this.setState({ viewConfigTmp });
     this.openModal(
       <ViewConfigEditor
-        onCancel={() => {
-          const { viewConfigTmp: viewConfig } = this.state;
-          const views = this.processViewConfig(viewConfig);
-          for (const view of dictValues(views)) {
-            this.adjustLayoutToTrackSizes(view);
-          }
-          this.setState({
-            views,
-            viewConfig,
-            viewConfigTmp: null,
-          });
-        }}
+        onCancel={() => {}}
         onChange={(viewConfigJson) => {
           const viewConfig = JSON.parse(viewConfigJson);
           const views = this.processViewConfig(viewConfig);
