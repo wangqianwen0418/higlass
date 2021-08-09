@@ -2121,6 +2121,12 @@ class TiledPlot extends React.Component {
           leftWidth={this.leftWidth}
           leftWidthNoGallery={this.leftWidthNoGallery}
           metaTracks={this.props.metaTracks}
+          onlyVerticalTracks={
+            this.props.tracks.bottom.length +
+              this.props.tracks.top.length +
+              this.props.tracks.center.length ===
+            0
+          }
           onMouseMoveZoom={this.props.onMouseMoveZoom}
           onNewTilesLoaded={this.props.onNewTilesLoaded}
           onScalesChanged={this.handleScalesChanged.bind(this)}

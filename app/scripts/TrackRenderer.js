@@ -604,8 +604,12 @@ class TrackRenderer extends React.Component {
       ])
       .range([initialXDomain[0], initialXDomain[1]]);
 
-    let startY; let endY;
-    if (this.currentProps.centerWidth === 0) {
+    let startY;
+    let endY;
+    if (
+      this.currentProps.centerWidth === 0 ||
+      this.currentProps.onlyVerticalTracks
+    ) {
       // If the width of the center track is zero, we do not want to make startY and endY equal.
       startY = this.currentProps.paddingTop + this.currentProps.topHeight;
       endY =
@@ -2010,6 +2014,7 @@ TrackRenderer.defaultProps = {
   canvasElement: null,
   centerHeight: 0,
   centerWidth: 0,
+  onlyVerticalTracks: false,
   children: [],
   galleryDim: 0,
   height: 0,
@@ -2032,6 +2037,7 @@ TrackRenderer.propTypes = {
   canvasElement: PropTypes.object,
   centerHeight: PropTypes.number,
   centerWidth: PropTypes.number,
+  onlyVerticalTracks: PropTypes.bool,
   children: PropTypes.array,
   disableTrackMenu: PropTypes.bool,
   galleryDim: PropTypes.number,
