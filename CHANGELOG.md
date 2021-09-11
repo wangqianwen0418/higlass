@@ -1,5 +1,9 @@
 # Release notes
 
+## Unreleased
+
+- Remove react bootstrap
+
 ## v1.11.8
 
 - Make vertical chromosome labels as well as loading status labels readable in vertical tracks
