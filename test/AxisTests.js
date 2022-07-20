@@ -27,7 +27,7 @@ describe('Axis tests', () => {
 
   const fetchMockHelper = new FetchMockHelper(null, 'AxisTests');
 
-  describe('Axis tets', () => {
+  describe('Axis tests', () => {
     beforeAll(async () => {
       await fetchMockHelper.activateFetchMock();
       await new Promise((resolve) => {
